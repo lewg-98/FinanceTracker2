@@ -1,29 +1,25 @@
-/**
- * ExpenseBreakdown Component
- * 
- * A donut chart visualization that breaks down expenses by category.
- * Uses Recharts for rendering and automatically updates when transaction data changes.
- * 
- * Features:
- * - Responsive design that adapts to container size
- * - Interactive tooltips showing category details
- * - Automatic color assignment for different categories
- * - Loading and error states
- */
-
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { type Transaction } from "@shared/schema";
+import { type Transaction, type Category } from "@shared/schema";
 import { formatCurrency } from "@/lib/utils";
 
 // Color palette for chart segments
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    name: string;
+    value: number;
+    payload: { percentage: number };
+  }>;
+}
+
 /**
  * Custom tooltip component for the pie chart
  */
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white p-2 border rounded shadow-lg">
@@ -39,12 +35,11 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export function ExpenseBreakdown() {
-  // Fetch transaction and category data
   const { data: transactions, isLoading: transactionsLoading, error: transactionsError } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions"],
   });
 
-  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery({
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
@@ -81,20 +76,20 @@ export function ExpenseBreakdown() {
   }
 
   // Calculate expenses by category
-  const expensesByCategory = transactions
-    ?.filter(t => t.type === "expense")
+  const expensesByCategory = (transactions || [])
+    .filter(t => t.type === "expense")
     .reduce((acc: Record<string, number>, transaction) => {
-      const category = categories?.find(c => c.id === transaction.categoryId);
+      const category = (categories || []).find(c => c.id === transaction.categoryId);
       const categoryName = category?.name || "Uncategorized";
       acc[categoryName] = (acc[categoryName] || 0) + Number(transaction.amount);
       return acc;
     }, {});
 
   // Calculate total expenses for percentage calculations
-  const totalExpenses = Object.values(expensesByCategory || {}).reduce((sum, amount) => sum + amount, 0);
+  const totalExpenses = Object.values(expensesByCategory).reduce((sum, amount) => sum + amount, 0);
 
   // Format data for the chart
-  const data = Object.entries(expensesByCategory || {}).map(([name, value]) => ({
+  const data = Object.entries(expensesByCategory).map(([name, value]) => ({
     name,
     value,
     percentage: (value / totalExpenses) * 100,
