@@ -10,15 +10,11 @@ deploymentTarget = "cloudrun"
 run = ["sh", "-c", "npm run dev"]
 
 [[ports]]
-localPort = 3000
-externalPort = 3000
-
-[[ports]]
 localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Run App"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -43,12 +39,3 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Run App"
-author = 37994740
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=5000 npm run dev"
