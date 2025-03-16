@@ -56,11 +56,7 @@ app.use((req, res, next) => {
   }
 
   const port = process.env.PORT || 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  server.listen(port, "0.0.0.0", () => {
     log(`Server running on port ${port}`);
   });
 })().catch((error) => {
