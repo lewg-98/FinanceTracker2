@@ -1,47 +1,45 @@
+
 import { type Category, type Transaction, type Budget, 
          type InsertCategory, type InsertTransaction, type InsertBudget } from "@shared/schema";
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { neon, neonConfig } from '@neondatabase/serverless';
-import { type Category as CategoryType, type Transaction as TransactionType, type Budget as BudgetType,
-         categories, transactions, budgets } from "@shared/schema";
+import { drizzle } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
+import { categories, transactions, budgets } from "@shared/schema";
 import { eq } from 'drizzle-orm';
-import WebSocket from 'ws';
 
-// Configure neon to use WebSocket for better connection handling
-neonConfig.webSocketConstructor = WebSocket;
+// Create database connection
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
 
 export interface IStorage {
   // Categories
-  getCategories(): Promise<CategoryType[]>;
-  createCategory(category: InsertCategory): Promise<CategoryType>;
+  getCategories(): Promise<Category[]>;
+  createCategory(category: InsertCategory): Promise<Category>;
 
   // Transactions
-  getTransactions(): Promise<TransactionType[]>;
-  createTransaction(transaction: InsertTransaction): Promise<TransactionType>;
+  getTransactions(): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
 
   // Budgets
-  getBudgets(): Promise<BudgetType[]>;
-  createBudget(budget: InsertBudget): Promise<BudgetType>;
-  updateBudget(id: number, spent: number): Promise<BudgetType>;
+  getBudgets(): Promise<Budget[]>;
+  createBudget(budget: InsertBudget): Promise<Budget>;
+  updateBudget(id: number, spent: number): Promise<Budget>;
 }
 
 export class PostgresStorage implements IStorage {
-  async getCategories(): Promise<CategoryType[]> {
+  async getCategories(): Promise<Category[]> {
     return await db.select().from(categories);
   }
 
-  async createCategory(category: InsertCategory): Promise<CategoryType> {
+  async createCategory(category: InsertCategory): Promise<Category> {
     const [newCategory] = await db.insert(categories).values(category).returning();
     return newCategory;
   }
 
-  async getTransactions(): Promise<TransactionType[]> {
+  async getTransactions(): Promise<Transaction[]> {
     return await db.select().from(transactions);
   }
 
-  async createTransaction(transaction: InsertTransaction): Promise<TransactionType> {
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [newTransaction] = await db.insert(transactions).values(transaction).returning();
 
     // Update budget if it exists
@@ -63,16 +61,16 @@ export class PostgresStorage implements IStorage {
     return newTransaction;
   }
 
-  async getBudgets(): Promise<BudgetType[]> {
+  async getBudgets(): Promise<Budget[]> {
     return await db.select().from(budgets);
   }
 
-  async createBudget(budget: InsertBudget): Promise<BudgetType> {
+  async createBudget(budget: InsertBudget): Promise<Budget> {
     const [newBudget] = await db.insert(budgets).values(budget).returning();
     return newBudget;
   }
 
-  async updateBudget(id: number, spent: number): Promise<BudgetType> {
+  async updateBudget(id: number, spent: number): Promise<Budget> {
     const [updatedBudget] = await db
       .update(budgets)
       .set({ spent: spent.toString() })
