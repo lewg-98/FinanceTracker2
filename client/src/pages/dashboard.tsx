@@ -37,17 +37,17 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <Sheet>
           <SheetTrigger asChild>
-            <Button>
+            <Button className="transition-all hover:scale-105">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Transaction
             </Button>
           </SheetTrigger>
-          <SheetContent>
+          <SheetContent className="sm:max-w-[425px]">
             <SheetHeader>
               <SheetTitle>Add Transaction</SheetTitle>
             </SheetHeader>
@@ -63,33 +63,45 @@ export default function Dashboard() {
           title="Total Balance"
           value={`$${stats?.balance.toFixed(2) || "0.00"}`}
           icon={Wallet}
+          description={stats?.balance > 0 ? "Looking good!" : "Needs attention"}
         />
         <StatsCard
           title="Income"
           value={`$${stats?.income.toFixed(2) || "0.00"}`}
           icon={TrendingUp}
+          description="Total earnings"
         />
         <StatsCard
           title="Expenses"
           value={`$${stats?.expenses.toFixed(2) || "0.00"}`}
           icon={TrendingDown}
+          description="Total spending"
         />
         <StatsCard
-          title="Savings"
+          title="Savings Rate"
           value={`${((stats?.balance || 0) / (stats?.income || 1) * 100).toFixed(1)}%`}
           icon={PiggyBank}
+          description="Of total income"
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <IncomeExpenses />
-        <ExpenseBreakdown />
+        <div className="lg:col-span-3">
+          <IncomeExpenses />
+        </div>
+        <div className="lg:col-span-2">
+          <ExpenseBreakdown />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
-          <h2 className="text-xl font-semibold mb-4">Recent Transactions</h2>
-          <TransactionList />
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Recent Transactions</h2>
+              <TransactionList />
+            </div>
+          </div>
         </div>
         <div>
           <BudgetProgress />
