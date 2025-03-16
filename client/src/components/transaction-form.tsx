@@ -20,18 +20,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export function TransactionForm() {
   const { toast } = useToast();
   const form = useForm({
     resolver: zodResolver(insertTransactionSchema),
     defaultValues: {
-      amount: 0,
+      amount: "",
       description: "",
       date: new Date().toISOString(),
       type: "expense",
+      categoryId: undefined,
     },
   });
 
@@ -41,7 +41,13 @@ export function TransactionForm() {
 
   const mutation = useMutation({
     mutationFn: async (values: any) => {
-      return apiRequest("POST", "/api/transactions", values);
+      // Ensure proper number formatting for the amount
+      const formattedValues = {
+        ...values,
+        amount: Number(values.amount).toFixed(2),
+        categoryId: Number(values.categoryId),
+      };
+      return apiRequest("POST", "/api/transactions", formattedValues);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
@@ -49,6 +55,13 @@ export function TransactionForm() {
       toast({
         title: "Success",
         description: "Transaction added successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
@@ -85,7 +98,13 @@ export function TransactionForm() {
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input type="number" {...field} />
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

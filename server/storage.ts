@@ -1,99 +1,90 @@
 import { type Category, type Transaction, type Budget, 
          type InsertCategory, type InsertTransaction, type InsertBudget } from "@shared/schema";
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import { neon, neonConfig } from '@neondatabase/serverless';
+import { type Category as CategoryType, type Transaction as TransactionType, type Budget as BudgetType,
+         categories, transactions, budgets } from "@shared/schema";
+import { eq } from 'drizzle-orm';
+import WebSocket from 'ws';
+
+// Configure neon to use WebSocket for better connection handling
+neonConfig.webSocketConstructor = WebSocket;
+const sql = neon(process.env.DATABASE_URL!);
+const db = drizzle(sql);
 
 export interface IStorage {
   // Categories
-  getCategories(): Promise<Category[]>;
-  createCategory(category: InsertCategory): Promise<Category>;
-  
+  getCategories(): Promise<CategoryType[]>;
+  createCategory(category: InsertCategory): Promise<CategoryType>;
+
   // Transactions
-  getTransactions(): Promise<Transaction[]>;
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  
+  getTransactions(): Promise<TransactionType[]>;
+  createTransaction(transaction: InsertTransaction): Promise<TransactionType>;
+
   // Budgets
-  getBudgets(): Promise<Budget[]>;
-  createBudget(budget: InsertBudget): Promise<Budget>;
-  updateBudget(id: number, spent: number): Promise<Budget>;
+  getBudgets(): Promise<BudgetType[]>;
+  createBudget(budget: InsertBudget): Promise<BudgetType>;
+  updateBudget(id: number, spent: number): Promise<BudgetType>;
 }
 
-export class MemStorage implements IStorage {
-  private categories: Map<number, Category>;
-  private transactions: Map<number, Transaction>;
-  private budgets: Map<number, Budget>;
-  private currentIds: { [key: string]: number };
-
-  constructor() {
-    this.categories = new Map();
-    this.transactions = new Map();
-    this.budgets = new Map();
-    this.currentIds = { categories: 1, transactions: 1, budgets: 1 };
-
-    // Add default categories
-    const defaultCategories = [
-      { name: "Salary", type: "income" },
-      { name: "Food", type: "expense" },
-      { name: "Transport", type: "expense" },
-      { name: "Utilities", type: "expense" },
-      { name: "Entertainment", type: "expense" }
-    ];
-
-    defaultCategories.forEach(cat => {
-      this.createCategory(cat);
-    });
+export class PostgresStorage implements IStorage {
+  async getCategories(): Promise<CategoryType[]> {
+    return await db.select().from(categories);
   }
 
-  async getCategories(): Promise<Category[]> {
-    return Array.from(this.categories.values());
-  }
-
-  async createCategory(category: InsertCategory): Promise<Category> {
-    const id = this.currentIds.categories++;
-    const newCategory = { ...category, id };
-    this.categories.set(id, newCategory);
+  async createCategory(category: InsertCategory): Promise<CategoryType> {
+    const [newCategory] = await db.insert(categories).values(category).returning();
     return newCategory;
   }
 
-  async getTransactions(): Promise<Transaction[]> {
-    return Array.from(this.transactions.values());
+  async getTransactions(): Promise<TransactionType[]> {
+    return await db.select().from(transactions);
   }
 
-  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
-    const id = this.currentIds.transactions++;
-    const newTransaction = { ...transaction, id };
-    this.transactions.set(id, newTransaction);
+  async createTransaction(transaction: InsertTransaction): Promise<TransactionType> {
+    const [newTransaction] = await db.insert(transactions).values(transaction).returning();
 
     // Update budget if it exists
-    if (transaction.type === "expense") {
-      const budget = Array.from(this.budgets.values())
-        .find(b => b.categoryId === transaction.categoryId);
-      
-      if (budget) {
-        await this.updateBudget(budget.id, Number(budget.spent) + Number(transaction.amount));
+    if (transaction.type === "expense" && transaction.categoryId) {
+      const existingBudgets = await db
+        .select()
+        .from(budgets)
+        .where(eq(budgets.categoryId, transaction.categoryId));
+
+      const currentBudget = existingBudgets[0];
+      if (currentBudget) {
+        await this.updateBudget(
+          currentBudget.id,
+          Number(currentBudget.spent) + Number(transaction.amount)
+        );
       }
     }
 
     return newTransaction;
   }
 
-  async getBudgets(): Promise<Budget[]> {
-    return Array.from(this.budgets.values());
+  async getBudgets(): Promise<BudgetType[]> {
+    return await db.select().from(budgets);
   }
 
-  async createBudget(budget: InsertBudget): Promise<Budget> {
-    const id = this.currentIds.budgets++;
-    const newBudget = { ...budget, id };
-    this.budgets.set(id, newBudget);
+  async createBudget(budget: InsertBudget): Promise<BudgetType> {
+    const [newBudget] = await db.insert(budgets).values(budget).returning();
     return newBudget;
   }
 
-  async updateBudget(id: number, spent: number): Promise<Budget> {
-    const budget = this.budgets.get(id);
-    if (!budget) throw new Error("Budget not found");
-    
-    const updatedBudget = { ...budget, spent };
-    this.budgets.set(id, updatedBudget);
+  async updateBudget(id: number, spent: number): Promise<BudgetType> {
+    const [updatedBudget] = await db
+      .update(budgets)
+      .set({ spent: spent.toString() })
+      .where(eq(budgets.id, id))
+      .returning();
+
+    if (!updatedBudget) {
+      throw new Error("Budget not found");
+    }
+
     return updatedBudget;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new PostgresStorage();
