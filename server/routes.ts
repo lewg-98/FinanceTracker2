@@ -59,6 +59,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/transactions/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid transaction ID" });
+      }
+      await storage.deleteTransaction(id);
+      log(`Deleted transaction with ID: ${id}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      log(`Error deleting transaction: ${error.message}`, "error");
+      res.status(500).json({ error: "Failed to delete transaction" });
+    }
+  });
+
   // Budgets
   app.get("/api/budgets", async (_req, res) => {
     try {

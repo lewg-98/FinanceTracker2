@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite, log } from "./vite";
 
 const app = express();
 app.use(express.json());
@@ -38,32 +38,33 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    log("Starting server initialization...");
+    const server = await registerRoutes(app);
 
-  // Global error handler
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Global error handler
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    log(`Error: ${message}`, "error");
-    res.status(status).json({ message });
-  });
+      log(`Error: ${message}`, "error");
+      res.status(status).json({ message });
+    });
 
-  if (app.get("env") === "development") {
+    log("Setting up Vite middleware...");
     await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
 
-  const port = process.env.PORT || 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`Server running on port ${port}`);
-  });
-})().catch((error) => {
-  log(`Failed to start server: ${error.message}`, "error");
-  process.exit(1);
-});
+    // Always use port 5000 for Replit
+    const port = 5000;
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`Server running on port ${port}`);
+    });
+  } catch (error: any) {
+    log(`Failed to start server: ${error.message}`, "error");
+    process.exit(1);
+  }
+})();
